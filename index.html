@@ -535,20 +535,32 @@ footer .sig{font-family:'Caveat', cursive; font-size:1.3rem; color:var(--plum);}
   <!-- HEURISTICS -->
   <section class="card tilt-r" id="heuristics">
     <span class="section-tag">chapter three</span>
-    <h2>Heuristic Distance Metrics</h2>
-    <p>The choice of heuristic distance metric fundamentally dictates frontier expansion behavior. Select between these distance models in the interactive visualizer below to observe variations in search space exploration.</p>
+    <h2>Heuristic Distance Metrics & Differentiation</h2>
+    <p>The choice of heuristic distance metric fundamentally dictates frontier expansion behavior. Below is an analytical breakdown detailing how each distance model is calculated and <strong>why it differs from the other metrics</strong>:</p>
     <div class="formula-row">
       <div class="fbox">
         <span class="sym">Manhattan</span>
-        <p>Calculates grid distance <em>|dx| + |dy|</em>. Optimal for 4-directional grid graphs where movement is restricted to orthogonal axes.</p>
+        <p><strong>Formula:</strong> <em>|dx| + |dy|</em></p>
+        <p><strong>Primary Use:</strong> Strict 4-directional grid graphs (orthogonal steps only).</p>
+        <p style="margin-top:10px; font-size:0.88rem; border-top:1px dashed var(--line); padding-top:8px; color:var(--ink-soft);">
+          <strong>Why it Differs:</strong> Unlike Euclidean or Diagonal, Manhattan assumes movement is strictly constrained to grid axes. On 4-way grids, it provides the <em>exact minimum cost</em> without underestimating, yielding highly focused frontier expansion.
+        </p>
       </div>
       <div class="fbox">
         <span class="sym">Euclidean</span>
-        <p>Calculates straight-line Euclidean distance <em>√(dx² + dy²)</em>. Represents true spatial distance across continuous domains.</p>
+        <p><strong>Formula:</strong> <em>√(dx² + dy²)</em></p>
+        <p><strong>Primary Use:</strong> Continuous 2D vector space ("as the crow flies").</p>
+        <p style="margin-top:10px; font-size:0.88rem; border-top:1px dashed var(--line); padding-top:8px; color:var(--ink-soft);">
+          <strong>Why it Differs:</strong> Unlike Manhattan which forces right-angle steps, Euclidean assumes unconstrained straight-line vector motion. On discrete orthogonal grids, it underestimates true step costs, expanding slightly more nodes.
+        </p>
       </div>
       <div class="fbox">
-        <span class="sym">Diagonal</span>
-        <p>Calculates Chebyshev/Octile distance for 8-directional grids, accounting for uniform diagonal step costs.</p>
+        <span class="sym">Diagonal / Octile</span>
+        <p><strong>Formula:</strong> <em>(dx + dy) - min(dx, dy)</em></p>
+        <p><strong>Primary Use:</strong> 8-directional grids with diagonal step permissions.</p>
+        <p style="margin-top:10px; font-size:0.88rem; border-top:1px dashed var(--line); padding-top:8px; color:var(--ink-soft);">
+          <strong>Why it Differs:</strong> Unlike Manhattan (which forbids diagonals) or Euclidean (which assumes continuous curves), Octile explicitly incorporates diagonal step costs into discrete grid graph geometry.
+        </p>
       </div>
     </div>
   </section>
@@ -620,6 +632,37 @@ footer .sig{font-family:'Caveat', cursive; font-size:1.3rem; color:var(--plum);}
       <div><b id="stat-visited">0</b>Nodes Explored</div>
       <div><b id="stat-path">—</b>Path Length</div>
       <div><b id="stat-status">Idle</b>Status</div>
+    </div>
+
+    <!-- Benchmark Performance Comparison Box -->
+    <div class="benchmark-box" id="benchmark-box" style="margin-top: 22px; background: var(--paper); border: 1.5px solid var(--line); border-radius: 12px; padding: 18px 22px;">
+      <div style="font-family: 'Fraunces', serif; font-size: 1.15rem; color: var(--ink); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+        <span>🏆</span> <strong>Heuristic Benchmark & Efficiency Comparison</strong>
+      </div>
+      <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 12px;">Run a search using different metrics on the grid above to benchmark node expansions and identify the best vs. worst heuristic performance!</p>
+
+      <div class="benchmark-cards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
+        <div class="b-card" id="b-card-manhattan" style="background: var(--paper-2); padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--line); transition: all 0.25s ease;">
+          <div style="font-family: 'Fraunces', serif; font-size: 0.95rem; color: var(--plum);">Manhattan Metric</div>
+          <div style="font-size: 1.1rem; font-weight: bold; margin-top: 2px;" id="b-val-manhattan">—</div>
+          <div style="font-size: 0.78rem; color: var(--ink-soft);" id="b-sub-manhattan">Not tested yet</div>
+        </div>
+        <div class="b-card" id="b-card-euclidean" style="background: var(--paper-2); padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--line); transition: all 0.25s ease;">
+          <div style="font-family: 'Fraunces', serif; font-size: 0.95rem; color: var(--plum);">Euclidean Metric</div>
+          <div style="font-size: 1.1rem; font-weight: bold; margin-top: 2px;" id="b-val-euclidean">—</div>
+          <div style="font-size: 0.78rem; color: var(--ink-soft);" id="b-sub-euclidean">Not tested yet</div>
+        </div>
+        <div class="b-card" id="b-card-diagonal" style="background: var(--paper-2); padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--line); transition: all 0.25s ease;">
+          <div style="font-family: 'Fraunces', serif; font-size: 0.95rem; color: var(--plum);">Diagonal Metric</div>
+          <div style="font-size: 1.1rem; font-weight: bold; margin-top: 2px;" id="b-val-diagonal">—</div>
+          <div style="font-size: 0.78rem; color: var(--ink-soft);" id="b-sub-diagonal">Not tested yet</div>
+        </div>
+      </div>
+
+      <div class="benchmark-verdict" id="benchmark-verdict" style="display: flex; gap: 16px; font-size: 0.9rem; flex-wrap: wrap; border-top: 1px dashed var(--line); padding-top: 10px;">
+        <div>🏆 <strong>Best Metric:</strong> <span id="best-metric-name" style="color: var(--sage-deep); font-weight: bold;">Run search to evaluate</span></div>
+        <div>⚠️ <strong>Worst Metric:</strong> <span id="worst-metric-name" style="color: var(--peach-deep); font-weight: bold;">Run search to evaluate</span></div>
+      </div>
     </div>
   </section>
 
@@ -857,6 +900,7 @@ footer .sig{font-family:'Caveat', cursive; font-size:1.3rem; color:var(--plum);}
       document.getElementById('stat-path').textContent = (path.length-1)+' steps';
       document.getElementById('stat-status').textContent = 'Path found';
       finished = true;
+      recordMetricResult(closedSet.size, path.length - 1);
       return false;
     }
 
@@ -923,6 +967,7 @@ footer .sig{font-family:'Caveat', cursive; font-size:1.3rem; color:var(--plum);}
 
   document.getElementById('clear-walls').addEventListener('click', ()=>{
     walls.clear();
+    clearBenchmark();
     resetSearchState();
   });
 
@@ -934,6 +979,7 @@ footer .sig{font-family:'Caveat', cursive; font-size:1.3rem; color:var(--plum);}
         if(Math.random() < 0.24) walls.add(key(r,c));
       }
     }
+    clearBenchmark();
     resetSearchState();
   });
 
@@ -946,6 +992,95 @@ footer .sig{font-family:'Caveat', cursive; font-size:1.3rem; color:var(--plum);}
       mode = btn.dataset.mode;
     });
   });
+
+  // --- Benchmark Comparison Logic ---
+  let metricResults = {
+    manhattan: null,
+    euclidean: null,
+    diagonal: null
+  };
+
+  function recordMetricResult(visitedCount, pathSteps) {
+    const currentMetric = document.getElementById('heuristic').value;
+    metricResults[currentMetric] = {
+      visited: visitedCount,
+      pathLen: pathSteps
+    };
+    updateBenchmarkUI();
+  }
+
+  function updateBenchmarkUI() {
+    let tested = [];
+    const keys = ['manhattan', 'euclidean', 'diagonal'];
+
+    keys.forEach(m => {
+      const valEl = document.getElementById(`b-val-${m}`);
+      const subEl = document.getElementById(`b-sub-${m}`);
+      const cardEl = document.getElementById(`b-card-${m}`);
+      if (!valEl || !subEl || !cardEl) return;
+
+      cardEl.style.borderColor = 'var(--line)';
+
+      if (metricResults[m]) {
+        valEl.textContent = `${metricResults[m].visited} nodes`;
+        subEl.textContent = `Path: ${metricResults[m].pathLen} steps`;
+        tested.push({ name: m, visited: metricResults[m].visited, pathLen: metricResults[m].pathLen });
+      } else {
+        valEl.textContent = '—';
+        subEl.textContent = 'Not tested yet';
+      }
+    });
+
+    const bestEl = document.getElementById('best-metric-name');
+    const worstEl = document.getElementById('worst-metric-name');
+    if (!bestEl || !worstEl) return;
+
+    if (tested.length === 0) {
+      bestEl.textContent = 'Run search to evaluate';
+      worstEl.textContent = 'Run search to evaluate';
+      return;
+    }
+
+    // Sort by visited nodes count ascending (fewest explored = best efficiency)
+    tested.sort((a, b) => a.visited - b.visited);
+
+    const namesPretty = { manhattan: 'Manhattan Metric', euclidean: 'Euclidean Metric', diagonal: 'Diagonal Metric' };
+    const reasonsBest = {
+      manhattan: "Optimal 4-way grid fit (exact cost, no over/underestimation)",
+      euclidean: "Direct straight-line distance heuristic",
+      diagonal: "Takes diagonal shortcut metrics into account"
+    };
+
+    const best = tested[0];
+
+    if (tested.length === 1) {
+      bestEl.textContent = `${namesPretty[best.name]} (${best.visited} nodes explored)`;
+      worstEl.textContent = 'Select another metric above to compare!';
+      const bestCard = document.getElementById(`b-card-${best.name}`);
+      if (bestCard) bestCard.style.borderColor = 'var(--sage-deep)';
+    } else {
+      const worst = tested[tested.length - 1];
+
+      if (best.visited === worst.visited) {
+        bestEl.textContent = `Tied: ${tested.map(t => namesPretty[t.name]).join(', ')} (${best.visited} nodes)`;
+        worstEl.textContent = 'Equal performance on this grid setup';
+      } else {
+        const diff = worst.visited - best.visited;
+        bestEl.textContent = `${namesPretty[best.name]} (${best.visited} nodes) — ${reasonsBest[best.name]}`;
+        worstEl.textContent = `${namesPretty[worst.name]} (${worst.visited} nodes) — Expanded ${diff} extra nodes compared to ${namesPretty[best.name]}`;
+
+        const bestCard = document.getElementById(`b-card-${best.name}`);
+        const worstCard = document.getElementById(`b-card-${worst.name}`);
+        if (bestCard) bestCard.style.borderColor = 'var(--sage-deep)';
+        if (worstCard) worstCard.style.borderColor = 'var(--peach-deep)';
+      }
+    }
+  }
+
+  function clearBenchmark() {
+    metricResults = { manhattan: null, euclidean: null, diagonal: null };
+    updateBenchmarkUI();
+  }
 
   buildGrid();
   resetSearchState();
