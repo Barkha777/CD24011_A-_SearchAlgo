@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Traveler's Path — A Field Guide to A* Search</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Karla:wght@400;500;600;700&family=Caveat:wght@500;600&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --paper: #f2e8e1;
+  --paper-2: #ece0d6;
+  --ink: #3b2e46;
+  --ink-soft: #5a4a68;
+  --lavender: #b7a3d6;
+  --lavender-deep: #8f79b8;
+  --sage: #8fa888;
+  --sage-deep: #6d8a67;
+  --peach: #eebd93;
+  --peach-deep: #d99a63;
+  --plum: #6b4a7a;
+  --line: rgba(59,46,70,0.18);
+  --shadow: rgba(90,60,100,0.16);
+  --card-border: rgba(59,46,70,0.22);
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper: #1c1624;
+    --paper-2: #251d2e;
+    --ink: #f0e6f5;
+    --ink-soft: #cdb9dd;
+    --lavender: #9983b8;
+    --lavender-deep: #b7a3d6;
+    --sage: #6b8864;
+    --sage-deep: #8cb085;
+    --peach: #d69865;
+    --peach-deep: #f0b584;
+    --plum: #a27cb5;
+    --line: rgba(240,230,245,0.14);
+    --shadow: rgba(0,0,0,0.5);
+    --card-border: rgba(240,230,245,0.18);
+  }
+}
+
+:root[data-theme="dark"]{
+  --paper: #1c1624;
+  --paper-2: #251d2e;
+  --ink: #f0e6f5;
+  --ink-soft: #cdb9dd;
+  --lavender: #9983b8;
+  --lavender-deep: #b7a3d6;
+  --sage: #6b8864;
+  --sage-deep: #8cb085;
+  --peach: #d69865;
+  --peach-deep: #f0b584;
+  --plum: #a27cb5;
+  --line: rgba(240,230,245,0.14);
+  --shadow: rgba(0,0,0,0.5);
+  --card-border: rgba(240,230,245,0.18);
+}
+
+:root[data-theme="light"]{
+  --paper: #f2e8e1;
+  --paper-2: #ece0d6;
+  --ink: #3b2e46;
+  --ink-soft: #5a4a68;
+  --lavender: #b7a3d6;
+  --lavender-deep: #8f79b8;
+  --sage: #8fa888;
+  --sage-deep: #6d8a67;
+  --peach: #eebd93;
+  --peach-deep: #d99a63;
+  --plum: #6b4a7a;
+  --line: rgba(59,46,70,0.18);
+  --shadow: rgba(90,60,100,0.16);
+  --card-border: rgba(59,46,70,0.22);
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+
+body{
+  margin:0;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(183,163,214,0.16), transparent 55%),
+    radial-gradient(ellipse at 85% 30%, rgba(238,189,147,0.14), transparent 50%),
+    var(--paper);
+  color:var(--ink);
+  font-family:'Karla', sans-serif;
+  font-size:17px;
+  line-height:1.6;
+  overflow-x:hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* paper grain */
+body::before{
+  content:"";
+  position:fixed; inset:0;
+  pointer-events:none;
+  opacity:0.35;
+  z-index:1;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay;
+}
+
+.wrap{max-width:920px; margin:0 auto; padding:0 28px; position:relative; z-index:2;}
+
+/* Top Header Bar with Theme Switcher */
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0 0;
+}
+.theme-btn {
+  font-family: 'Karla', sans-serif;
+  font-weight: 600;
+  font-size: 0.88rem;
+  border: 1.5px solid var(--ink);
+  background: var(--paper-2);
+  color: var(--ink);
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+.theme-btn:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+h1,h2,h3{
+  font-family:'Fraunces', serif;
+  font-weight:500;
+  color:var(--ink);
+  margin:0 0 0.4em;
+  letter-spacing:0.2px;
+}
+
+a{color:var(--plum);}
+
+/* ---------- wandering dotted path background ---------- */
+.drift-path{
+  position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.5;
+}
+.drift-path path{
+  stroke:var(--lavender-deep);
+  stroke-width:2;
+  stroke-dasharray:1 14;
+  stroke-linecap:round;
+  fill:none;
+  opacity:0.4;
+}
+
+/* ---------- hero ---------- */
+.hero{
+  position:relative;
+  padding:40px 0 60px;
+}
+.hero-frame{
+  display:grid;
+  grid-template-columns:1.15fr 0.85fr;
+  gap:36px;
+  align-items:center;
+}
+.hero-eyebrow{
+  font-family:'Caveat', cursive;
+  font-size:1.5rem;
+  color:var(--plum);
+  transform:rotate(-2deg);
+  display:inline-block;
+  margin-bottom:6px;
+}
+.hero h1{
+  font-size:clamp(2.4rem, 5vw, 3.6rem);
+  line-height:1.08;
+  max-width:12ch;
+}
+.hero p{
+  max-width:46ch;
+  color:var(--ink-soft);
+  font-size:1.08rem;
+}
+.compass{
+  justify-self:center;
+  animation:bob 7s ease-in-out infinite;
+}
+@keyframes bob{
+  0%,100%{transform:translateY(0) rotate(-2deg);}
+  50%{transform:translateY(-10px) rotate(2deg);}
+}
+@media (prefers-reduced-motion: reduce){
+  .compass{animation:none;}
+}
+
+/* ---------- torn-paper section card ---------- */
+.card{
+  position:relative;
+  background:var(--paper-2);
+  border-radius:4px;
+  padding:38px 40px;
+  margin:52px 0;
+  box-shadow:0 18px 40px -22px var(--shadow);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.card::before{
+  content:"";
+  position:absolute; inset:0;
+  border-radius:4px;
+  border:1.5px solid var(--card-border);
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M1,2 Q3,0 6,1 T14,0.5 T24,1.2 T35,0.3 T48,1 T60,0.4 T72,1.1 T85,0.5 T99,1 L99,98 Q96,100 92,99 T80,99.6 T68,98.9 T55,99.7 T42,99 T29,99.6 T16,98.8 T3,99.4 T1,98 Z' fill='black'/%3E%3C/svg%3E");
+  mask-size:100% 100%;
+  pointer-events:none;
+}
+.card.tilt-l{transform:rotate(-0.4deg);}
+.card.tilt-r{transform:rotate(0.35deg);}
+
+.section-tag{
+  font-family:'Caveat', cursive;
+  font-size:1.3rem;
+  color:var(--sage-deep);
+  transform:rotate(-1.5deg);
+  display:inline-block;
+  margin-bottom:2px;
+}
+
+/* ---------- formula diagram ---------- */
+.formula-row{
+  display:flex; gap:18px; flex-wrap:wrap;
+  margin:26px 0 6px;
+}
+.fbox{
+  flex:1; min-width:180px;
+  background:var(--paper);
+  border-radius:14px;
+  padding:18px 20px;
+  border:1.5px dashed var(--line);
+  transform:rotate(var(--r,0deg));
+}
+.fbox:nth-child(1){--r:-0.6deg;}
+.fbox:nth-child(2){--r:0.5deg;}
+.fbox:nth-child(3){--r:-0.3deg;}
+.fbox .sym{
+  font-family:'Fraunces', serif;
+  font-style:italic;
+  font-size:1.6rem;
+  color:var(--plum);
+}
+.fbox p{margin:6px 0 0; font-size:0.95rem; color:var(--ink-soft);}
+.fsum{
+  text-align:center;
+  font-family:'Fraunces', serif;
+  font-size:1.4rem;
+  font-style:italic;
+  margin:22px 0 4px;
+  color:var(--ink);
+}
+
+/* ---------- First-Timer Instructions Box ---------- */
+.instructions-banner {
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin: 18px 0 24px;
+  box-shadow: inset 0 2px 6px var(--shadow);
+}
+.instructions-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 1.1rem;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.instructions-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 720px) {
+  .instructions-steps { grid-template-columns: 1fr; }
+}
+.step-item {
+  display: flex;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  align-items: flex-start;
+}
+.step-num {
+  background: var(--plum);
+  color: var(--paper);
+  font-family: 'Fraunces', serif;
+  font-size: 0.85rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ---------- visualizer ---------- */
+.viz-card{padding:34px 34px 40px;}
+.viz-controls{
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  margin:18px 0 20px;
+}
+button{
+  font-family:'Karla', sans-serif;
+  font-weight:600;
+  font-size:0.92rem;
+  border:1.5px solid var(--ink);
+  background:transparent;
+  color:var(--ink);
+  padding:9px 16px;
+  border-radius:999px;
+  cursor:pointer;
+  transition:background 0.25s ease, color 0.25s ease, transform 0.15s ease;
+}
+button:hover{background:var(--ink); color:var(--paper);}
+button:active{transform:scale(0.96);}
+button.primary{background:var(--plum); color:var(--paper); border-color:var(--plum);}
+button.primary:hover{background:var(--lavender-deep);}
+button:focus-visible, select:focus-visible, .cell:focus-visible{
+  outline:2.5px solid var(--sage-deep); outline-offset:2px;
+}
+select{
+  font-family:'Karla', sans-serif; font-size:0.9rem; font-weight:600;
+  border:1.5px solid var(--ink); border-radius:999px; padding:8px 14px;
+  background:var(--paper); color:var(--ink); cursor:pointer;
+}
+.mode-group{display:flex; gap:6px; background:var(--paper); padding:4px; border-radius:999px; border:1.5px solid var(--line);}
+.mode-group button{border:none; padding:7px 13px; border-radius:999px;}
+.mode-group button.active{background:var(--ink); color:var(--paper);}
+.mode-group button:hover{background:var(--ink-soft); color:var(--paper);}
+
+.speed-row{display:flex; align-items:center; gap:8px; font-size:0.88rem; color:var(--ink-soft);}
+input[type=range]{accent-color:var(--plum);}
+
+#grid{
+  display:grid;
+  gap:2px;
+  background:var(--line);
+  border-radius:10px;
+  overflow:hidden;
+  border:1.5px solid var(--line);
+  touch-action:none;
+  user-select:none;
+}
+.cell{
+  aspect-ratio:1;
+  background:var(--paper);
+  cursor:pointer;
+  transition:background-color 0.35s ease;
+  position:relative;
+}
+.cell.wall{background:var(--ink-soft); opacity:0.65;}
+.cell.open{background:var(--lavender); opacity:0.65;}
+.cell.closed{background:var(--sage); opacity:0.55;}
+.cell.current{background:var(--peach-deep);}
+.cell.path{background:var(--peach); animation:settle 0.5s ease;}
+@keyframes settle{from{transform:scale(0.6);} to{transform:scale(1);}}
+.cell.start{background:var(--sage-deep) !important;}
+.cell.end{background:var(--plum) !important;}
+.cell.start::after{content:"✦"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--paper); font-size:0.75em;}
+.cell.end::after{content:"◆"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--paper); font-size:0.65em;}
+
+.legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:18px; font-size:0.85rem; color:var(--ink-soft);}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:13px; height:13px; border-radius:4px; display:inline-block;}
+
+.stat-row{display:flex; gap:26px; flex-wrap:wrap; margin-top:16px; font-size:0.9rem; color:var(--ink-soft);}
+.stat-row b{color:var(--ink); font-family:'Fraunces',serif; font-size:1.15rem; display:block;}
+
+/* ---------- vignettes ---------- */
+.vignettes{
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:22px;
+  margin-top:24px;
+}
+.vig{
+  background:var(--paper);
+  border-radius:16px;
+  padding:20px;
+  transform:rotate(var(--r,0deg));
+  border:1.5px solid var(--line);
+}
+.vig:nth-child(1){--r:-1deg;}
+.vig:nth-child(2){--r:0.8deg;}
+.vig:nth-child(3){--r:-0.5deg;}
+.vig .glyph{font-size:1.8rem;}
+.vig h3{font-size:1.05rem; margin:10px 0 6px;}
+.vig p{font-size:0.9rem; color:var(--ink-soft); margin:0;}
+
+/* ---------- notebook pseudocode ---------- */
+details.notebook{
+  background:repeating-linear-gradient(var(--paper) 0 31px, var(--line) 31px 32px);
+  border-radius:4px;
+  padding:22px 26px;
+  border:1.5px solid var(--line);
+  transform:rotate(-0.3deg);
+}
+details.notebook summary{
+  cursor:pointer;
+  font-family:'Fraunces', serif;
+  font-size:1.15rem;
+  list-style:none;
+  display:flex; align-items:center; gap:8px;
+}
+details.notebook summary::-webkit-details-marker{display:none;}
+details.notebook summary::before{
+  content:"✎"; color:var(--plum);
+}
+details.notebook pre{
+  font-family: 'Fira Code', 'JetBrains Mono', 'Source Code Pro', Consolas, monospace;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  margin: 16px 0 0;
+  padding: 18px 22px;
+  background: var(--paper);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  letter-spacing: 0.2px;
+  overflow-x: auto;
+}
+.kw { color: var(--plum); font-weight: 600; }
+.fn { color: var(--sage-deep); font-weight: 500; }
+.cm { color: var(--ink-soft); font-style: italic; opacity: 0.85; }
+.var { color: var(--peach-deep); }
+.complexity-note{
+  margin-top:14px; padding-top:14px; border-top:1px dashed var(--line);
+  font-size:0.9rem; color:var(--ink-soft);
+}
+
+footer{
+  text-align:center;
+  padding:50px 0 70px;
+  color:var(--ink-soft);
+  font-size:0.88rem;
+}
+footer .sig{font-family:'Caveat', cursive; font-size:1.3rem; color:var(--plum);}
+
+@media (max-width: 760px){
+  .hero-frame{grid-template-columns:1fr;}
+  .compass{order:-1; width:120px;}
+  .vignettes{grid-template-columns:1fr;}
+  .card{padding:26px 22px;}
+}
+</style>
+</head>
+<body>
+
+<svg class="drift-path" viewBox="0 0 1000 2400" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M 80 40 Q 300 200 150 420 T 400 800 Q 600 950 500 1200 T 700 1600 Q 850 1800 650 2050 T 300 2350"/>
+</svg>
+
+<div class="wrap">
+
+  <!-- TOP NAV & THEME SWITCHER -->
+  <div class="top-nav">
+    <span class="hero-eyebrow" style="transform:none; margin:0;">Field Guide to Pathfinding</span>
+    <button id="theme-toggle" class="theme-btn" aria-label="Toggle Light and Dark Mode">
+      <span id="theme-icon">🌙</span> <span id="theme-text">Dark Mode</span>
+    </button>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-frame">
+      <div>
+        <span class="hero-eyebrow">an interactive field guide to optimal search</span>
+        <h1>The traveler who learned to estimate wisely</h1>
+        <p>Between unguided search and precise mapping lives an algorithm engineered for efficiency. This is the technical story of <strong>A* search</strong> — achieving shortest-path optimization through heuristic evaluation.</p>
+      </div>
+      <svg class="compass" width="200" height="200" viewBox="0 0 200 200" aria-hidden="true">
+        <circle cx="100" cy="100" r="86" fill="none" stroke="var(--ink-soft)" stroke-width="1.5" stroke-dasharray="3 6" opacity="0.6"/>
+        <circle cx="100" cy="100" r="60" fill="var(--paper-2)" stroke="var(--line)" stroke-width="1.5"/>
+        <path d="M100 44 L112 100 L100 156 L88 100 Z" fill="var(--peach-deep)" opacity="0.9"/>
+        <path d="M44 100 L100 90 L156 100 L100 110 Z" fill="var(--lavender-deep)" opacity="0.85"/>
+        <circle cx="100" cy="100" r="6" fill="var(--ink)"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- STORY OPENING -->
+  <section class="card tilt-l">
+    <span class="section-tag">chapter one</span>
+    <h2>State Space Exploration & Informed Search</h2>
+    <p>Consider navigating an unmapped grid from a designated origin to a target destination. Countless potential paths exist — varying in length, complexity, and obstacle density. Uninformed exploration systematically evaluates all adjacent nodes, guaranteeing path discovery at the expense of computational efficiency.</p>
+    <p>An uninformed approach (such as <strong>Dijkstra’s algorithm</strong> or Breadth-First Search) expands outwards uniformly in concentric rings. In contrast, <strong>A* Search</strong> incorporates a distance estimation heuristic. By maintaining rigorous state cost tracking while biasing search frontiers toward the destination node, A* minimizes unnecessary node expansions without compromising optimality.</p>
+  </section>
+
+  <!-- CORE CONCEPT -->
+  <section class="card tilt-r">
+    <span class="section-tag">chapter two</span>
+    <h2>The Core Evaluation Function</h2>
+    <p>At each step, A* prioritizes candidate state transitions by evaluating a composite cost function. This balance between historical cost and prospective distance forms the cornerstone of the algorithm.</p>
+
+    <div class="formula-row">
+      <div class="fbox">
+        <span class="sym">g(n)</span>
+        <p><strong>Path Cost So Far:</strong> The total exact movement cost accumulated from the start node to state <em>n</em>.</p>
+      </div>
+      <div class="fbox">
+        <span class="sym">h(n)</span>
+        <p><strong>Heuristic Estimate:</strong> An admissible estimate of the minimum remaining cost from state <em>n</em> to the goal.</p>
+      </div>
+      <div class="fbox">
+        <span class="sym">f(n)</span>
+        <p><strong>Priority Evaluation Score:</strong> The combined metric <em>f(n) = g(n) + h(n)</em> determining open set expansion order.</p>
+      </div>
+    </div>
+    <p class="fsum">f(n) = g(n) + h(n)</p>
+    <p>A* continuously expands the state in the priority queue with the minimum <em>f(n)</em> value. Provided the heuristic <em>h(n)</em> is admissible (never overestimating the actual remaining cost), A* is guaranteed to yield the optimal shortest path. Setting <em>h(n) = 0</em> reduces A* directly to Dijkstra's algorithm.</p>
+  </section>
+
+  <!-- HEURISTICS -->
+  <section class="card tilt-r" id="heuristics">
+    <span class="section-tag">chapter three</span>
+    <h2>Heuristic Distance Metrics</h2>
+    <p>The choice of heuristic distance metric fundamentally dictates frontier expansion behavior. Select between these distance models in the interactive visualizer below to observe variations in search space exploration.</p>
+    <div class="formula-row">
+      <div class="fbox">
+        <span class="sym">Manhattan</span>
+        <p>Calculates grid distance <em>|dx| + |dy|</em>. Optimal for 4-directional grid graphs where movement is restricted to orthogonal axes.</p>
+      </div>
+      <div class="fbox">
+        <span class="sym">Euclidean</span>
+        <p>Calculates straight-line Euclidean distance <em>√(dx² + dy²)</em>. Represents true spatial distance across continuous domains.</p>
+      </div>
+      <div class="fbox">
+        <span class="sym">Diagonal</span>
+        <p>Calculates Chebyshev/Octile distance for 8-directional grids, accounting for uniform diagonal step costs.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- VISUALIZER -->
+  <section class="card viz-card tilt-l" id="visualizer">
+    <span class="section-tag">chapter four — interactive demonstration</span>
+    <h2>Interactive Pathfinding Visualizer</h2>
+    <p>Interactively configure obstacles, set origin and target coordinates, and observe the step-by-step expansion of open and closed sets as A* computes the optimal trajectory.</p>
+
+    <!-- First-Timer Instructions Box -->
+    <div class="instructions-banner">
+      <div class="instructions-header">
+        <span>💡</span>
+        <strong>First-Timer Guide — How to Operate the Grid</strong>
+      </div>
+      <div class="instructions-steps">
+        <div class="step-item">
+          <span class="step-num">1</span>
+          <div><strong>Design Grid Terrain:</strong> Select <em>Draw thicket</em> and click/drag on the grid to add walls. Select <em>Place traveler</em> (✦) or <em>Place clearing</em> (◆) to move start and target locations.</div>
+        </div>
+        <div class="step-item">
+          <span class="step-num">2</span>
+          <div><strong>Configure Heuristic:</strong> Select between Manhattan, Euclidean, or Diagonal distance metrics to compare exploration patterns and node expansions.</div>
+        </div>
+        <div class="step-item">
+          <span class="step-num">3</span>
+          <div><strong>Run & Inspect:</strong> Click <strong>Set off</strong> to run continuous search, or <strong>Step once</strong> to advance iteration by iteration. Observe lavender (open set) and sage (closed set) states.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="viz-controls">
+      <div class="mode-group" role="group" aria-label="drawing mode">
+        <button data-mode="wall" class="active">Draw thicket</button>
+        <button data-mode="start">Place traveler</button>
+        <button data-mode="end">Place clearing</button>
+      </div>
+      <select id="heuristic" aria-label="heuristic">
+        <option value="manhattan">Manhattan Metric</option>
+        <option value="euclidean">Euclidean Metric</option>
+        <option value="diagonal">Diagonal Metric</option>
+      </select>
+      <button id="clear-walls">Clear thicket</button>
+      <button id="randomize">Scatter thicket</button>
+    </div>
+
+    <div class="viz-controls">
+      <button id="run" class="primary">Set off</button>
+      <button id="step">Step once</button>
+      <button id="reset">Reset walk</button>
+      <div class="speed-row">
+        <label for="speed">Pace</label>
+        <input type="range" id="speed" min="1" max="60" value="24">
+      </div>
+    </div>
+
+    <div id="grid"></div>
+
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--lavender)"></i> Open Set (Frontier)</span>
+      <span><i class="swatch" style="background:var(--sage)"></i> Closed Set (Evaluated)</span>
+      <span><i class="swatch" style="background:var(--peach-deep)"></i> Active Node</span>
+      <span><i class="swatch" style="background:var(--peach)"></i> Optimal Path</span>
+      <span><i class="swatch" style="background:var(--ink-soft);opacity:.65"></i> Thicket (Wall)</span>
+    </div>
+
+    <div class="stat-row">
+      <div><b id="stat-visited">0</b>Nodes Explored</div>
+      <div><b id="stat-path">—</b>Path Length</div>
+      <div><b id="stat-status">Idle</b>Status</div>
+    </div>
+  </section>
+
+  <!-- WHY IT MATTERS -->
+  <section class="card tilt-l">
+    <span class="section-tag">chapter five</span>
+    <h2>Real-World Applications</h2>
+    <div class="vignettes">
+      <div class="vig">
+        <span class="glyph">🕹️</span>
+        <h3>Game AI & Motion Planning</h3>
+        <p>Autonomous agents and non-player characters utilize A* for dynamic pathfinding, recalculating trajectories in real time around moving entities.</p>
+      </div>
+      <div class="vig">
+        <span class="glyph">🧭</span>
+        <h3>Geospatial Navigation & GPS</h3>
+        <p>Turn-by-turn routing platforms scale A* across massive road networks, factoring speed limits and real-time traffic conditions into segment costs.</p>
+      </div>
+      <div class="vig">
+        <span class="glyph">🦾</span>
+        <h3>Robotics & Kinematic Control</h3>
+        <p>Industrial manipulators and autonomous mobile robots plan collision-free paths in high-dimensional configuration spaces using A* variants.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PSEUDOCODE -->
+  <section class="card tilt-r">
+    <span class="section-tag">algorithmic specification</span>
+    <details class="notebook" open>
+      <summary>A* Search Implementation (Pseudocode)</summary>
+      <pre><code><span class="var">open_set</span> = { start }
+<span class="var">g</span>[start] = 0
+<span class="var">f</span>[start] = <span class="fn">h</span>(start)
+
+<span class="kw">while</span> <span class="var">open_set</span> is not empty:
+    <span class="var">current</span> = node in <span class="var">open_set</span> with lowest f value
+    <span class="kw">if</span> <span class="var">current</span> == goal:
+        <span class="kw">return</span> <span class="fn">reconstruct_path</span>(<span class="var">current</span>)
+
+    remove <span class="var">current</span> from <span class="var">open_set</span>
+    add <span class="var">current</span> to <span class="var">closed_set</span>
+
+    <span class="kw">for each</span> neighbor of <span class="var">current</span>:
+        <span class="kw">if</span> neighbor is a wall or in <span class="var">closed_set</span>:
+            <span class="kw">continue</span>
+        <span class="var">tentative_g</span> = <span class="var">g</span>[current] + <span class="fn">cost</span>(current, neighbor)
+        <span class="kw">if</span> <span class="var">tentative_g</span> &lt; <span class="var">g</span>[neighbor] (or neighbor unseen):
+            <span class="var">came_from</span>[neighbor] = current
+            <span class="var">g</span>[neighbor] = <span class="var">tentative_g</span>
+            <span class="var">f</span>[neighbor] = <span class="var">tentative_g</span> + <span class="fn">h</span>(neighbor)
+            add neighbor to <span class="var">open_set</span>
+
+<span class="kw">return</span> <span class="cm">"no path exists"</span></code></pre>
+      <div class="complexity-note"><strong>Complexity Analysis:</strong> In the worst-case scenario, A* maintains a time complexity of <strong>O(E log V)</strong> when backed by a binary min-heap priority queue, and a space complexity of <strong>O(V)</strong> to maintain open/closed sets. An admissible and consistent heuristic minimizes unnecessary node expansions.</div>
+    </details>
+  </section>
+
+  <footer>
+    <p>A concise, professional reference for algorithmic pathfinding.<br><span class="sig">optimal search complete</span></p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  // --- Theme Switcher Logic ---
+  const themeBtn = document.getElementById('theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+  const themeText = document.getElementById('theme-text');
+  
+  // Detect current theme or preference
+  let currentTheme = localStorage.getItem('theme');
+  if (!currentTheme) {
+    currentTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  setTheme(currentTheme);
+
+  themeBtn.addEventListener('click', () => {
+    const newTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+  });
+
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    if (theme === 'dark') {
+      themeIcon.textContent = '☀️';
+      themeText.textContent = 'Light Mode';
+    } else {
+      themeIcon.textContent = '🌙';
+      themeText.textContent = 'Dark Mode';
+    }
+  }
+
+  // --- Grid Visualizer Logic ---
+  const ROWS = 16, COLS = 26;
+  const gridEl = document.getElementById('grid');
+  gridEl.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+
+  let cells = [];
+  let walls = new Set();
+  let start = {r:2, c:3};
+  let end = {r:13, c:22};
+  let mode = 'wall';
+  let isMouseDown = false;
+
+  let running = false;
+  let openSet = [], closedSet = new Set(), cameFrom = {}, gScore = {}, fScore = {};
+  let intervalId = null;
+  let finished = false;
+
+  function key(r,c){ return r+','+c; }
+
+  function buildGrid(){
+    gridEl.innerHTML = '';
+    cells = [];
+    for(let r=0;r<ROWS;r++){
+      const row = [];
+      for(let c=0;c<COLS;c++){
+        const div = document.createElement('div');
+        div.className = 'cell';
+        div.tabIndex = 0;
+        div.setAttribute('role','button');
+        div.dataset.r = r; div.dataset.c = c;
+        div.addEventListener('mousedown', ()=>{ isMouseDown = true; handleCell(r,c); });
+        div.addEventListener('mouseenter', ()=>{ if(isMouseDown) handleCell(r,c); });
+        div.addEventListener('touchstart', (e)=>{ e.preventDefault(); handleCell(r,c); }, {passive:false});
+        div.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); handleCell(r,c);} });
+        gridEl.appendChild(div);
+        row.push(div);
+      }
+      cells.push(row);
+    }
+    document.addEventListener('mouseup', ()=> isMouseDown = false);
+    render();
+  }
+
+  function handleCell(r,c){
+    if(running) return;
+    if(mode === 'wall'){
+      if((r===start.r&&c===start.c)||(r===end.r&&c===end.c)) return;
+      const k = key(r,c);
+      if(walls.has(k)) walls.delete(k); else walls.add(k);
+    } else if(mode === 'start'){
+      if(walls.has(key(r,c))) return;
+      start = {r,c};
+    } else if(mode === 'end'){
+      if(walls.has(key(r,c))) return;
+      end = {r,c};
+    }
+    resetSearchState();
+    render();
+  }
+
+  function render(){
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const el = cells[r][c];
+        el.className = 'cell';
+        const k = key(r,c);
+        if(walls.has(k)) el.classList.add('wall');
+        if(closedSet.has(k)) el.classList.add('closed');
+        if(openSet.find(n=>n.r===r&&n.c===c)) el.classList.add('open');
+        if(r===start.r && c===start.c) el.classList.add('start');
+        if(r===end.r && c===end.c) el.classList.add('end');
+      }
+    }
+  }
+
+  function heuristic(r,c){
+    const dr = Math.abs(r-end.r), dc = Math.abs(c-end.c);
+    const type = document.getElementById('heuristic').value;
+    if(type==='manhattan') return dr+dc;
+    if(type==='euclidean') return Math.sqrt(dr*dr+dc*dc);
+    return (dr+dc) - Math.min(dr,dc); // diagonal / octile metric
+  }
+
+  function neighbors(r,c){
+    const deltas = [[-1,0],[1,0],[0,-1],[0,1]];
+    const out = [];
+    for(const [dr,dc] of deltas){
+      const nr=r+dr, nc=c+dc;
+      if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&!walls.has(key(nr,nc))) out.push({r:nr,c:nc});
+    }
+    return out;
+  }
+
+  function resetSearchState(){
+    stopRun();
+    openSet = [{r:start.r,c:start.c}];
+    closedSet = new Set();
+    cameFrom = {};
+    gScore = {}; gScore[key(start.r,start.c)] = 0;
+    fScore = {}; fScore[key(start.r,start.c)] = heuristic(start.r,start.c);
+    finished = false;
+    document.getElementById('stat-visited').textContent = '0';
+    document.getElementById('stat-path').textContent = '—';
+    document.getElementById('stat-status').textContent = 'Idle';
+    render();
+  }
+
+  function stopRun(){
+    running = false;
+    if(intervalId){ clearInterval(intervalId); intervalId = null; }
+  }
+
+  function stepSearch(){
+    if(finished) return false;
+    if(openSet.length === 0){
+      document.getElementById('stat-status').textContent = 'No path found';
+      finished = true;
+      return false;
+    }
+    let lowestIdx = 0;
+    for(let i=1;i<openSet.length;i++){
+      const a = openSet[i], b = openSet[lowestIdx];
+      if((fScore[key(a.r,a.c)]??Infinity) < (fScore[key(b.r,b.c)]??Infinity)) lowestIdx = i;
+    }
+    const current = openSet[lowestIdx];
+    const ck = key(current.r,current.c);
+
+    if(current.r===end.r && current.c===end.c){
+      let path = [current];
+      let k = ck;
+      while(cameFrom[k]){
+        path.push(cameFrom[k]);
+        k = key(cameFrom[k].r, cameFrom[k].c);
+      }
+      path.forEach(p=>{
+        if(!(p.r===start.r&&p.c===start.c) && !(p.r===end.r&&p.c===end.c)){
+          cells[p.r][p.c].classList.add('path');
+        }
+      });
+      document.getElementById('stat-path').textContent = (path.length-1)+' steps';
+      document.getElementById('stat-status').textContent = 'Path found';
+      finished = true;
+      return false;
+    }
+
+    openSet.splice(lowestIdx,1);
+    closedSet.add(ck);
+
+    for(const n of neighbors(current.r,current.c)){
+      const nk = key(n.r,n.c);
+      if(closedSet.has(nk)) continue;
+      const tentativeG = gScore[ck] + 1;
+      if(tentativeG < (gScore[nk] ?? Infinity)){
+        cameFrom[nk] = current;
+        gScore[nk] = tentativeG;
+        fScore[nk] = tentativeG + heuristic(n.r,n.c);
+        if(!openSet.find(o=>o.r===n.r&&o.c===n.c)) openSet.push(n);
+      }
+    }
+
+    document.getElementById('stat-visited').textContent = closedSet.size;
+    document.getElementById('stat-status').textContent = 'Exploring…';
+    if(!(current.r===start.r&&current.c===start.c)){
+      render();
+      cells[current.r][current.c].classList.add('current');
+    } else {
+      render();
+    }
+    return true;
+  }
+
+  document.getElementById('step').addEventListener('click', ()=>{
+    stopRun();
+    stepSearch();
+  });
+
+  document.getElementById('run').addEventListener('click', ()=>{
+    if(running){ stopRun(); document.getElementById('run').textContent='Set off'; return; }
+    if(finished) resetSearchState();
+    running = true;
+    document.getElementById('run').textContent = 'Pause';
+    const speed = document.getElementById('speed');
+    const tick = ()=>{
+      const cont = stepSearch();
+      if(!cont){ stopRun(); document.getElementById('run').textContent='Set off'; }
+    };
+    const delay = 320 - (speed.value*5);
+    intervalId = setInterval(tick, Math.max(8,delay));
+  });
+
+  document.getElementById('speed').addEventListener('input', ()=>{
+    if(running){
+      clearInterval(intervalId);
+      const delay = 320 - (document.getElementById('speed').value*5);
+      intervalId = setInterval(()=>{
+        const cont = stepSearch();
+        if(!cont){ stopRun(); document.getElementById('run').textContent='Set off'; }
+      }, Math.max(8,delay));
+    }
+  });
+
+  document.getElementById('reset').addEventListener('click', ()=>{
+    document.getElementById('run').textContent = 'Set off';
+    resetSearchState();
+  });
+
+  document.getElementById('clear-walls').addEventListener('click', ()=>{
+    walls.clear();
+    resetSearchState();
+  });
+
+  document.getElementById('randomize').addEventListener('click', ()=>{
+    walls.clear();
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        if((r===start.r&&c===start.c)||(r===end.r&&c===end.c)) continue;
+        if(Math.random() < 0.24) walls.add(key(r,c));
+      }
+    }
+    resetSearchState();
+  });
+
+  document.getElementById('heuristic').addEventListener('change', resetSearchState);
+
+  document.querySelectorAll('.mode-group button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.mode-group button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      mode = btn.dataset.mode;
+    });
+  });
+
+  buildGrid();
+  resetSearchState();
+})();
+</script>
+
+</body>
+</html>
